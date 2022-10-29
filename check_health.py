@@ -12,11 +12,13 @@ TELEGRAM_GROUP_ID = os.getenv('TELEGRAM_GROUP_ID')
 CHAINS = ['ethereum', 'binance', 'polygon', 'avalanche', 'fantom', 'moonbeam', 'aurora']
 
 
-def get_validator():
+def get_all_validators():
   req_data = {"path":"/cosmos/staking/v1beta1/validators","module":"lcd"}
   response = requests.post('https://api.axelarscan.io/', json=req_data)
 
-  validators = response.json()['validators']
+  return response.json()['validators']
+
+def get_validator(validators):
   for validator in validators:
     if validator['operator_address'] == VALIDATOR_ADDRESS:
       return validator
@@ -48,7 +50,12 @@ def send_telegram_notification(message):
   })
 
 try:
-  validator = get_validator()
+  validators = get_all_validators()
+except:
+  sys.exit(1)
+
+try:
+  validator = get_validator(validators)
 except:
   send_telegram_notification('😱 Validator not found in validators list: https://axelarscan.io/validators ⚠️⚠️⚠️')
   sys.exit(1)
