@@ -18,9 +18,9 @@ def get_all_validators():
 
   return response.json()['validators']
 
-def get_validator(validators):
+def get_validator(validator_address, validators):
   for validator in validators:
-    if validator['operator_address'] == VALIDATOR_ADDRESS:
+    if validator['operator_address'] == validator_address:
       return validator
   raise Exception('Validator not found')
 
@@ -30,7 +30,7 @@ def is_bonded(validator):
 def is_jailed(validator):
   return validator['jailed']
 
-def validator_has_external_chain(chain):
+def is_missing_chain(validator_address, chain):
   json = {"chain": chain}
   try:
     response = requests.post('https://api.axelarscan.io/chain-maintainers', json=json)
@@ -38,10 +38,10 @@ def validator_has_external_chain(chain):
   except:
     return False
 
-  return VALIDATOR_ADDRESS in maintainers
+  return validator_address not in maintainers
 
-def validator_get_missing_external_chains():
-  return [chain for chain in CHAINS if not validator_has_external_chain(chain)]
+def get_missing_chains(validator_address):
+  return [chain for chain in CHAINS if not is_missing_chain(validator_address, chain)]
 
 def send_telegram_notification(message):
   requests.post(f'https://api.telegram.org/bot{TELEGRAM_API_KEY}/sendMessage', json={
@@ -55,7 +55,7 @@ except:
   sys.exit(1)
 
 try:
-  validator = get_validator(validators)
+  validator = get_validator(VALIDATOR_ADDRESS, validators)
 except:
   send_telegram_notification('😱 Validator not found in validators list: https://axelarscan.io/validators ⚠️⚠️⚠️')
   sys.exit(1)
@@ -66,7 +66,5 @@ if is_jailed(validator):
 if not is_bonded(validator):
   send_telegram_notification('😱 Validator is not bonded: https://axelarscan.io/validators ⚠️⚠️⚠️')
 
-missing_external_chains = validator_get_missing_external_chains()
-
-for missing_chain in missing_external_chains:
+for missing_chain in get_missing_chains(VALIDATOR_ADDRESS):
   send_telegram_notification(f'😱🔗🔗🔗 Validator is missing external chain {missing_chain}: https://axelarscan.io/validators ⚠️⚠️⚠️')
