@@ -7,7 +7,7 @@ load_dotenv()
 VALIDATOR_ADDRESS = os.getenv('VALIDATOR_ADDRESS')
 TELEGRAM_API_KEY = os.getenv('TELEGRAM_API_KEY')
 TELEGRAM_GROUP_ID = os.getenv('TELEGRAM_GROUP_ID')
-VALIDATOR_NAME = 'TESTNET' # TODO:change to env
+VALIDATOR_NAME = os.getenv('VALIDATOR_NAME')
 AXELARSCAN_API_URL = os.getenv('AXELARSCAN_API_URL')
 
 CHAINS = os.getenv('EXTERNAL_CHAINS').split(',')
@@ -78,6 +78,7 @@ def is_missing_chain(validator_address, chain):
 
 def send_telegram_notification(message):
   message = f'[{VALIDATOR_NAME}] {message}'
+  print(message)
   requests.post(f'https://api.telegram.org/bot{TELEGRAM_API_KEY}/sendMessage', json={
     'chat_id': TELEGRAM_GROUP_ID,
     'text': message,
