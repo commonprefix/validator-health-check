@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 VALIDATOR_ADDRESS = os.getenv('VALIDATOR_ADDRESS')
+BROADCASTER_ADDRESS = os.getenv('BROADCASTER_ADDRESS')
 TELEGRAM_API_KEY = os.getenv('TELEGRAM_API_KEY')
 TELEGRAM_GROUP_ID = os.getenv('TELEGRAM_GROUP_ID')
 VALIDATOR_NAME = os.getenv('VALIDATOR_NAME')
@@ -24,8 +25,13 @@ errors = {
     'last_status': False
   },
   'validator_missing': {
-    'error_message': '😱 Validator not found in validators list: https://axelarscan.io/validators ⚠️⚠️⚠️',
+    'error_message': '😱❓❓ Validator not found in validators list: https://axelarscan.io/validators ⚠️⚠️⚠️',
     'recover_message': '✅ Validator back in validators list: https://axelarscan.io/validators',
+    'last_status': False
+  },
+  'heartbeats': {
+    'error_message': '😱🔻🔻❤️❤️ Validator missing heartbeat: https://axelarscan.io/validators ⚠️⚠️⚠️',
+    'recover_message': '✅ Validator heartbeats recovered: https://axelarscan.io/validators',
     'last_status': False
   }
 }
@@ -36,6 +42,18 @@ for chain in CHAINS:
     'recover_message': f'✅ Validator external chain {chain} is registered again: https://axelarscan.io/validators',
     'last_status': False
   }
+
+def get_current_block_height():
+  req_data = {'path':'/status','module':'rpc'}
+  response = requests.post(AXELARSCAN_API_URL, json=req_data)
+
+  return int(response.json()['latest_block_height'])
+
+def get_last_heartbeat():
+  req_data = {"sender":BROADCASTER_ADDRESS,"size":1}
+  response = requests.post(f'{AXELARSCAN_API_URL}/heartbeats', json=req_data)
+
+  return response.json()['data']
 
 def get_all_validators():
   all_validators = []
@@ -76,6 +94,18 @@ def is_missing_chain(validator_address, chain):
 
   return validator_address not in maintainers
 
+def is_missing_heartbeat(height, last_heartbeat):
+  try:
+    last_heartbeat_block = last_heartbeat[0]['period_height']
+  except:
+    return True
+
+  if last_heartbeat_block < height - 55:
+    return True
+
+  return False
+
+
 def send_telegram_notification(message):
   message = f'[{VALIDATOR_NAME}] {message}'
   print(message)
@@ -101,6 +131,7 @@ def check():
   try:
     validators = get_all_validators()
   except:
+    print('Failed to get validators')
     return
   
   try:
@@ -114,5 +145,19 @@ def check():
 
   handle_error_status('bonded', not is_bonded(validator))
 
-  for chain in CHAINS:
-    handle_error_status(f'missing-chain-{chain}', is_missing_chain(VALIDATOR_ADDRESS, chain))
+  #for chain in CHAINS:
+  #  handle_error_status(f'missing-chain-{chain}', is_missing_chain(VALIDATOR_ADDRESS, chain))
+
+  try:
+    height = get_current_block_height()
+  except:
+    print('Failed to get current block height')
+    return
+
+  try:
+    last_heartbeat = get_last_heartbeat()
+  except:
+    print('Failed to get last heartbeat')
+    return
+
+  handle_error_status('heartbeats', is_missing_heartbeat(height, last_heartbeat))
